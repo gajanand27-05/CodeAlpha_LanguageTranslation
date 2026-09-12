@@ -164,6 +164,47 @@ def test_validation() -> None:
           translate("x" * MAX_INPUT_CHARS, "en", "fr", providers=[FakeProvider("P")]) is not None)
 
 
+def test_api_rejects_non_string_fields() -> None:
+    """The web layer must not coerce non-strings into text to translate.
+
+    str() on a list or a bool succeeds, so without an explicit type check the
+    endpoint answered {"text": true} with the Hindi for "True", and a JSON
+    array with a translated "['a', 'b']".
+    """
+    print("\n--- api rejects non-string fields ---")
+    import app as web
+
+    client = web.app.test_client()
+    for label, payload in [
+        ("a number", {"text": 12345, "source": "en", "target": "hi"}),
+        ("a list", {"text": ["a", "b"], "source": "en", "target": "hi"}),
+        ("an object", {"text": {"k": "v"}, "source": "en", "target": "hi"}),
+        ("a boolean", {"text": True, "source": "en", "target": "hi"}),
+        ("a non-string source", {"text": "hi", "source": 1, "target": "hi"}),
+        ("a non-string target", {"text": "hi", "source": "en", "target": 2}),
+    ]:
+        response = client.post("/api/translate", json=payload)
+        body = response.get_json()
+        ok = response.status_code == 400 and not body.get("ok") and "must be a string" in body.get("error", "")
+        check(f"{label} is rejected", ok, f"{response.status_code} {body}")
+
+    # A well-formed request must still be accepted by the same code path. This
+    # uses a stubbed translate so the check does not depend on the network.
+    original = web.translate
+    web.translate = lambda text, source, target: type(
+        "R", (), {"text": "ok", "detected_code": None, "provider": "Stub"}
+    )()
+    try:
+        response = client.post(
+            "/api/translate", json={"text": "hello", "source": "en", "target": "hi"}
+        )
+        check("a valid string request still succeeds",
+              response.status_code == 200 and response.get_json().get("ok") is True,
+              str(response.get_json()))
+    finally:
+        web.translate = original
+
+
 def test_no_change_detection() -> None:
     print("\n--- unchanged output detection ---")
     check("identical text is flagged", looks_like_no_change("Hello", "Hello"))
@@ -212,6 +253,7 @@ def main() -> int:
     test_chunking()
     test_fallback()
     test_validation()
+    test_api_rejects_non_string_fields()
     test_no_change_detection()
     test_language_table()
 

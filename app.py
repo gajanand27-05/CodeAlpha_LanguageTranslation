@@ -36,9 +36,19 @@ def index():
 @app.route("/api/translate", methods=["POST"])
 def api_translate():
     payload = request.get_json(silent=True) or {}
-    text = str(payload.get("text", ""))
-    source = str(payload.get("source", "auto"))
-    target = str(payload.get("target", "en"))
+    text = payload.get("text", "")
+    source = payload.get("source", "auto")
+    target = payload.get("target", "en")
+
+    # Reject non-strings rather than coercing them. str() on a list or a bool
+    # succeeds and produces a Python repr, so {"text": true} was being answered
+    # with the Hindi for "True" and {"text": ["a","b"]} with a translated
+    # "['a', 'b']". Nonsense in, confident nonsense out is worse than an error.
+    for name, value in (("text", text), ("source", source), ("target", target)):
+        if not isinstance(value, str):
+            return jsonify(
+                {"ok": False, "error": f"'{name}' must be a string, not {type(value).__name__}"}
+            ), 400
 
     # Reject codes that are not in the table rather than passing them upstream.
     # A bad code would otherwise come back as an opaque failure from the service.

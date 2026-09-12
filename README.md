@@ -101,7 +101,7 @@ python test_translator.py --live     # also calls the real services
 
 ## Tests
 
-`python test_translator.py` runs 37 checks and never touches the network. The
+`python test_translator.py` runs 44 checks and never touches the network. The
 providers are replaced with fakes, which is what makes it possible to test the
 parts that matter: that a failing provider falls through to the next, that the
 second is not called when the first succeeds, that an empty answer counts as a
