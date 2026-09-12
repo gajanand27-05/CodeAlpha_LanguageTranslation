@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Language Translation Tool</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="page">
+
+    <header class="masthead">
+      <div>
+        <h1>Language Translation Tool</h1>
+        <p>Type text, choose the languages, get the translation. {{ codes|length }} languages available.</p>
+      </div>
+    </header>
+
+    <div class="languages">
+      <label class="field">
+        <span>From</span>
+        <select id="source">
+          <option value="auto" selected>Detect language</option>
+          <optgroup label="Common">
+            {% for name in common %}<option value="{{ codes[name] }}">{{ name }}</option>{% endfor %}
+          </optgroup>
+          <optgroup label="All languages">
+            {% for name in rest %}<option value="{{ codes[name] }}">{{ name }}</option>{% endfor %}
+          </optgroup>
+        </select>
+      </label>
+
+      <button type="button" id="swap" class="swap" title="Swap languages" aria-label="Swap languages">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path d="M7 4v13M7 4L4 7.5M7 4l3 3.5M17 20V7M17 20l3-3.5M17 20l-3-3.5"
+                stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+        </svg>
+      </button>
+
+      <label class="field">
+        <span>To</span>
+        <select id="target">
+          <optgroup label="Common">
+            {% for name in common %}
+            <option value="{{ codes[name] }}" {% if name == 'Hindi' %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </optgroup>
+          <optgroup label="All languages">
+            {% for name in rest %}<option value="{{ codes[name] }}">{{ name }}</option>{% endfor %}
+          </optgroup>
+        </select>
+      </label>
+    </div>
+
+    <div class="panes">
+      <section class="pane">
+        <div class="pane-head">
+          <h2>Your text</h2>
+          <span class="counter" id="counter">0 / {{ max_chars }}</span>
+        </div>
+        <textarea id="input" maxlength="{{ max_chars }}" spellcheck="false"
+                  placeholder="Type or paste text here"></textarea>
+        <div class="pane-foot">
+          <button type="button" class="ghost" id="clear">Clear</button>
+          <button type="button" class="primary" id="translate">Translate</button>
+        </div>
+      </section>
+
+      <section class="pane">
+        <div class="pane-head">
+          <h2>Translation</h2>
+          <span class="note" id="note"></span>
+        </div>
+        <div class="output" id="output" aria-live="polite"><span class="placeholder">The translation appears here.</span></div>
+        <div class="pane-foot">
+          <button type="button" class="ghost" id="speak" disabled>
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path d="M4 9v6h4l5 4V5L8 9H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8 8 0 0 1 0 12"
+                    stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+            </svg>
+            Listen
+          </button>
+          <button type="button" class="ghost" id="copy" disabled>Copy</button>
+        </div>
+      </section>
+    </div>
+
+    <footer class="footnote">
+      <p>Translations come from a public service. If the first one fails the tool
+         automatically tries a second, and the panel above says which one answered.</p>
+      <p>CodeAlpha AI Internship, Task 1</p>
+    </footer>
+
+  </div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

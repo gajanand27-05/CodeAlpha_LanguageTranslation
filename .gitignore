@@ -1,0 +1,22 @@
+# Virtual environment. Never commit this: it's hundreds of MB and
+# machine-specific, and requirements.txt is how others recreate it.
+venv/
+.venv/
+
+# Python bytecode cache, generated automatically when you run code.
+__pycache__/
+*.py[cod]
+
+# API keys and secrets. NEVER commit these. A leaked key in a public
+# repo is found by bots within minutes. This project needs no key to run,
+# but the file is listed so adding one later cannot leak it by accident.
+.env
+
+# Flask instance folder
+instance/
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

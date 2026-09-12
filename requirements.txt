@@ -1,0 +1,3 @@
+# Flask is the only third-party requirement. The translation layer uses nothing
+# but the standard library: urllib for the HTTP calls and json for the replies.
+Flask==3.1.3
