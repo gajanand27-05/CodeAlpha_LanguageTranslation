@@ -122,6 +122,24 @@ def test_fallback() -> None:
         check("all providers failing raises", True)
         check("and reports the first provider's reason", "first reason" in str(exc), str(exc))
 
+    # Only the primary service can auto-detect, so an "auto" request that fails
+    # everywhere never really got a fallback. The error has to say so, since
+    # choosing a source language is a fix the user can actually apply.
+    try:
+        translate("hello", "auto", "es", providers=[a, b])
+        check("an auto request failing everywhere raises", False)
+    except TranslationError as exc:
+        check("an auto request failing everywhere raises", True)
+        check("and still reports the first provider's reason", "first reason" in str(exc), str(exc))
+        check("and tells the user to choose a source language",
+              "source language" in str(exc), str(exc))
+
+    try:
+        translate("hello", "en", "es", providers=[a, b])
+    except TranslationError as exc:
+        check("an explicit source gets no such advice",
+              "source language" not in str(exc), str(exc))
+
     crasher = FakeProvider("Crasher", error=OSError("connection reset"))
     out = translate("hello", "en", "es", providers=[crasher, backup])
     check("a network level error also falls through", out.provider == "Backup", out.provider)

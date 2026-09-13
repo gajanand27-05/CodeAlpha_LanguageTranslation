@@ -180,6 +180,16 @@ def translate(text: str, source: str, target: str, providers=None) -> Translatio
         if first_error is None:
             first_error = f"{provider.name}: empty translation"
 
+    # Only MyMemory's Google-less path can honour an explicit source, so when
+    # "auto" was asked for and everything failed, the fallback never really had
+    # a chance. Say that, because picking a source language is a fix the user
+    # can apply and "HTTP Error 429" on its own does not suggest it.
+    if source == "auto":
+        raise TranslationError(
+            f"{first_error or 'No translation provider is available'}. "
+            "Auto-detect needs Google. Choose the source language to use the fallback"
+        )
+
     raise TranslationError(first_error or "No translation provider is available")
 
 

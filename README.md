@@ -42,9 +42,27 @@ two equal options. Asked for "Good morning" in Hindi, Google returns
 human translations rather than translating. It is there so the tool still answers
 when the first service does not, not because it is as good.
 
+### Where the fallback does not reach
+
+Worth stating plainly, because it is the one case the design does not cover.
+Only Google detects the source language, so on **auto-detect there is no
+fallback at all**. If Google is unavailable, MyMemory is asked to translate from
+a language nobody has named, and it refuses rather than guessing.
+
+That refusal is deliberate. Guessing the source would produce a fluent
+translation from the wrong language, which is worse than an error because
+nothing about it looks wrong. But it does mean auto-detect is only as reliable as
+Google is, and the fallback covers the explicit-source case only.
+
+So when every provider fails on an auto-detect request, the error says to choose
+a source language. The rate limit is not something the user can do anything
+about; choosing a source language is, and it makes the fallback reachable.
+
 Swapping in an official Google Cloud Translation or Azure Translator key would be
-steadier than either. That means adding a class with a `translate` method to the
-`PROVIDERS` list in `translator.py`. Nothing else has to change.
+steadier than either, and would close this gap as well, since a paid endpoint
+detects the language and does not rate limit. That means adding a class with a
+`translate` method to the `PROVIDERS` list in `translator.py`. Nothing else has
+to change.
 
 ## Long text is split before sending
 
@@ -101,7 +119,7 @@ python test_translator.py --live     # also calls the real services
 
 ## Tests
 
-`python test_translator.py` runs 44 checks and never touches the network. The
+`python test_translator.py` runs 48 checks and never touches the network. The
 providers are replaced with fakes, which is what makes it possible to test the
 parts that matter: that a failing provider falls through to the next, that the
 second is not called when the first succeeds, that an empty answer counts as a
