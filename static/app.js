@@ -140,13 +140,20 @@ swapBtn.addEventListener("click", () => {
   }
 });
 
+// The label is a constant and the pending timer is cleared, rather than saving
+// whatever the button currently says. Reading the live text meant a second click
+// inside the 1200 ms window captured "Copied" as the label to restore, and the
+// button stayed reading "Copied" for good.
+const COPY_LABEL = "Copy";
+let copyResetTimer = null;
+
 copyBtn.addEventListener("click", async () => {
   if (!lastTranslation) return;
   try {
     await navigator.clipboard.writeText(lastTranslation);
-    const original = copyBtn.textContent;
     copyBtn.textContent = "Copied";
-    setTimeout(() => { copyBtn.textContent = original; }, 1200);
+    clearTimeout(copyResetTimer);
+    copyResetTimer = setTimeout(() => { copyBtn.textContent = COPY_LABEL; }, 1200);
   } catch {
     setNote("The browser blocked clipboard access.", "warn");
   }

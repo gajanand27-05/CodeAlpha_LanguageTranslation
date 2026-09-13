@@ -83,9 +83,9 @@ source themselves. Echoing that back would just tell them what they already chos
 so it is shown only when the source is set to detect.
 
 **Unchanged output is flagged.** If the translation comes back effectively
-identical to the input, the panel says so. That usually means the text was already
-in the target language, and a user staring at unchanged text deserves to be told
-which of the two things happened.
+identical to the input, the panel says so. That means either the text was already
+in the target language or the service had nothing for this pair, and a user
+staring at unchanged text deserves to be told which of the two happened.
 
 **Translated text is inserted with `textContent`, never `innerHTML`.** It arrives
 from an external service, so it is data, not markup.
@@ -132,8 +132,15 @@ suite that fails for reasons unrelated to the code stops being trusted.
 
 Also covered: chunking never loses or duplicates text and always respects the
 limit, input validation rejects empty, over-long and same-language requests
-before any request is made, and every language code in the table is one the
-service published.
+before any request is made, non-string API fields are refused rather than
+coerced, and the language table is internally consistent (codes unique, every
+shortcut language present, reverse lookup correct, `auto` not offered as a
+target).
+
+What the tests do *not* check is that all 133 codes are still accepted by the
+service. The table was generated from the service's own published list rather
+than typed by hand, but that is a fact about how the file was made, not
+something the suite verifies, and the list could change upstream tomorrow.
 
 ## Project layout
 
