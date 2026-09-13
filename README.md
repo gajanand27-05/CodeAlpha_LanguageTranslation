@@ -75,6 +75,18 @@ Break points are tried in order of preference: paragraph, then line, then senten
 the limit is cut, because at that point there is nowhere sensible left to break.
 Splitting mid-word would be visible in the output.
 
+**The seam needs putting back together, too.** Chunks are cut *after* their
+separator, so each one ends with the space or the newlines it was split on. Both
+services strip that before answering: send `"The river is wide. "` and the reply
+has no trailing space. Joining those replies end to end then welds the last word
+of one chunk onto the first word of the next, and a blank line between paragraphs
+disappears completely. `restore_edges` puts each chunk's original leading and
+trailing whitespace back around the translated text.
+
+This one only appears on input long enough to be split, which is why it survived
+a test suite written against short strings. It was found by translating nine
+paragraphs of Kannada and noticing a single missing space.
+
 ## Notable behaviour
 
 **Detection is only reported when it was asked for.** The service returns the
@@ -119,7 +131,7 @@ python test_translator.py --live     # also calls the real services
 
 ## Tests
 
-`python test_translator.py` runs 48 checks and never touches the network. The
+`python test_translator.py` runs 55 checks and never touches the network. The
 providers are replaced with fakes, which is what makes it possible to test the
 parts that matter: that a failing provider falls through to the next, that the
 second is not called when the first succeeds, that an empty answer counts as a

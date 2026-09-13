@@ -84,6 +84,26 @@ def split_into_chunks(text: str, limit: int) -> list[str]:
     return chunks
 
 
+def restore_edges(chunk: str, translated: str) -> str:
+    """Put back the whitespace the service trimmed from a chunk's edges.
+
+    Chunks are cut *after* their separator, so each one ends with the "\\n\\n",
+    "\\n" or " " it was split on. Both services strip that before answering:
+    send "The river is wide. " and the reply comes back with no trailing space.
+    Joining those replies end to end then welds the last word of one chunk onto
+    the first word of the next, and a paragraph break disappears entirely.
+
+    The seam is the one thing the careful choice of break points exists to hide,
+    and it only shows up on text long enough to be split, which is why it
+    survived a test suite built on short strings.
+    """
+    if not chunk.strip():
+        return chunk
+    lead = chunk[: len(chunk) - len(chunk.lstrip())]
+    trail = chunk[len(chunk.rstrip()):]
+    return lead + translated.strip() + trail
+
+
 class GoogleProvider:
     """Google's public translate endpoint. Also reports the detected language."""
 
@@ -103,7 +123,8 @@ class GoogleProvider:
 
             # payload[0] is a list of [translated, original, ...] segments, and
             # payload[2] is the detected source language when sl was "auto".
-            pieces.append("".join(seg[0] for seg in payload[0] if seg and seg[0]))
+            piece = "".join(seg[0] for seg in payload[0] if seg and seg[0])
+            pieces.append(restore_edges(chunk, piece))
             if detected is None and len(payload) > 2 and isinstance(payload[2], str):
                 detected = payload[2]
         return "".join(pieces), detected
@@ -140,7 +161,7 @@ class MyMemoryProvider:
             translated = (payload.get("responseData") or {}).get("translatedText")
             if not translated:
                 raise TranslationError("MyMemory returned nothing")
-            pieces.append(translated)
+            pieces.append(restore_edges(chunk, translated))
         return "".join(pieces), None
 
 

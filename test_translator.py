@@ -16,6 +16,7 @@ down says nothing about whether this code is correct. Run with --live.
 from __future__ import annotations
 
 import sys
+import urllib.parse
 
 import languages
 from translator import (
@@ -23,9 +24,19 @@ from translator import (
     Translation,
     TranslationError,
     looks_like_no_change,
+    restore_edges,
     split_into_chunks,
     translate,
 )
+
+# This suite prints translated text, which is the whole point of the live group
+# and is rarely ASCII. A Windows console pipe defaults to cp1252 and cannot
+# encode Devanagari, so printing a correct Hindi result raised UnicodeEncodeError.
+# errors="replace" means an un-printable character degrades to a placeholder
+# instead of taking the run down: the test is about the translation, not about
+# what the terminal happens to support.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 failures = 0
 
@@ -89,6 +100,58 @@ def test_chunking() -> None:
         check("a zero limit is rejected", False)
     except ValueError:
         check("a zero limit is rejected", True)
+
+
+def test_chunk_seams_survive_a_trimming_service() -> None:
+    """Both real services strip whitespace off a chunk before answering.
+
+    Chunks are cut after their separator, so each ends with the space or the
+    newlines it was split on. Without putting those back the rejoined output
+    welds one chunk's last word onto the next chunk's first word, and paragraph
+    breaks vanish. Only visible on text long enough to be split.
+    """
+    print("\n--- chunk seams ---")
+
+    check("a trimmed sentence gets its space back",
+          restore_edges("The river is wide. ", "Le fleuve est large.")
+          == "Le fleuve est large. ")
+    check("a paragraph break is preserved",
+          restore_edges("First para.\n\n", "Premier para.") == "Premier para.\n\n")
+    check("leading whitespace is preserved",
+          restore_edges("  indented", "indenté") == "  indenté")
+    check("a chunk with no edge whitespace is untouched",
+          restore_edges("plain", "simple") == "simple")
+    check("an all-whitespace chunk is returned as is",
+          restore_edges("\n\n", "anything") == "\n\n")
+
+    # The chunking lives inside each real provider, so the fix has to be tested
+    # through the real provider. Only the HTTP call is replaced: the stub trims
+    # the text exactly as both live services do, and wraps it so every chunk
+    # boundary is visible in the result.
+    import translator as t
+
+    def fake_get_json(url: str):
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        sent = query["q"][0]
+        trimmed = f"<{sent.strip()}>"
+        if "mymemory" in url:
+            return {"responseStatus": 200, "responseData": {"translatedText": trimmed}}
+        return [[[trimmed, sent]], None, "en"]
+
+    source_text = "First sentence here. Second sentence here. Third sentence here."
+    # Three chunks at a 30 character limit, each wrapped, with the two seam
+    # spaces intact. Before the fix this came back as "...here.><Second...".
+    expected = "<First sentence here.> <Second sentence here.> <Third sentence here.>"
+
+    real_get_json = t._get_json
+    t._get_json = fake_get_json
+    try:
+        for provider in (t.GoogleProvider(), t.MyMemoryProvider()):
+            provider.chunk_limit = 30
+            out, _ = provider.translate(source_text, "en", "fr")
+            check(f"{provider.name}: seams survive rejoining", out == expected, out)
+    finally:
+        t._get_json = real_get_json
 
 
 # ------------------------------------------------------------------ fallback
@@ -252,23 +315,31 @@ def live_checks() -> None:
     print("\n--- live services (not counted; needs the internet) ---")
     from translator import GoogleProvider, MyMemoryProvider
 
+    # Only the network call is inside the try. The print used to be in there
+    # too, and on a Windows console that defaults to cp1252 the Devanagari
+    # result could not be encoded, so a successful translation raised
+    # UnicodeEncodeError on the way to the screen and was reported as the
+    # service being unavailable. Both providers were working perfectly.
     for provider, source in [(GoogleProvider(), "en"), (MyMemoryProvider(), "en")]:
         try:
             out, _ = provider.translate("Good morning", source, "hi")
-            print(f"LIVE  {provider.name:10} en->hi  {out!r}")
         except Exception as exc:
             print(f"LIVE  {provider.name:10} unavailable: {type(exc).__name__} {str(exc)[:70]}")
+            continue
+        print(f"LIVE  {provider.name:10} en->hi  {out!r}")
 
     try:
         result = translate("Bonjour tout le monde", "auto", "en")
-        print(f"LIVE  auto-detect  detected={result.detected_code!r} via {result.provider}: "
-              f"{result.text!r}")
     except Exception as exc:
         print(f"LIVE  auto-detect unavailable: {exc}")
+    else:
+        print(f"LIVE  auto-detect  detected={result.detected_code!r} via {result.provider}: "
+              f"{result.text!r}")
 
 
 def main() -> int:
     test_chunking()
+    test_chunk_seams_survive_a_trimming_service()
     test_fallback()
     test_validation()
     test_api_rejects_non_string_fields()
